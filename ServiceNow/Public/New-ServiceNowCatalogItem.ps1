@@ -5,11 +5,8 @@
 .DESCRIPTION
     Create a new catalog item request using Service Catalog API. Reference: https://www.servicenow.com/community/itsm-articles/submit-catalog-request-using-service-catalog-api/ta-p/2305836
 
-.PARAMETER CatalogItemName
-    Name of the catalog item that will be created
-
-.PARAMETER CatalogItemID
-    SysID of the catalog item that will be created
+.PARAMETER CatalogItem
+    Name or ID of the catalog item that will be created
 
 .PARAMETER Variables
     Key/value pairs of variable names and their values
@@ -24,12 +21,12 @@
     ServiceNow session created by New-ServiceNowSession.  Will default to script-level variable $ServiceNowSession.
 
 .EXAMPLE
-    New-ServiceNowRecord -CatalogItemName "Standard Laptop" -Variables @{'acrobat' = 'true'; 'photoshop' = 'true'; ' Additional_software_requirements' = 'Testing Service catalog API' }
+    New-ServiceNowCatalogItem -CatalogItem "Standard Laptop" -Variables @{'acrobat' = 'true'; 'photoshop' = 'true'; ' Additional_software_requirements' = 'Testing Service catalog API' }
 
     Raise a new catalog request using Item Name
 
 .EXAMPLE
-    New-ServiceNowRecord -CatalogItemID "04b7e94b4f7b42000086eeed18110c7fd" -Variables @{'acrobat' = 'true'; 'photoshop' = 'true'; ' Additional_software_requirements' = 'Testing Service catalog API' }
+    New-ServiceNowCatalogItem -CatalogItem "04b7e94b4f7b42000086eeed18110c7fd" -Variables @{'acrobat' = 'true'; 'photoshop' = 'true'; ' Additional_software_requirements' = 'Testing Service catalog API' }
 
     Raise a new catalog request using Item ID
 
@@ -40,15 +37,12 @@
     PSCustomObject if PassThru provided
 #>
 function New-ServiceNowCatalogItem {
-    [CmdletBinding(SupportsShouldProcess, DefaultParameterSetName = 'ID')]
+    [CmdletBinding(SupportsShouldProcess)]
     param
     (
-        [Parameter(Mandatory, ParameterSetName = 'Name')]
-        [string]$CatalogItemName,
-        [Parameter(Mandatory, ParameterSetName = 'ID')]
-        [string]$CatalogItemID,
-        [Parameter(Mandatory, ParameterSetName = 'Name')]
-        [Parameter(Mandatory, ParameterSetName = 'ID')]
+        [Parameter(Mandatory)]
+        [string]$CatalogItem,
+        [Parameter(Mandatory)]
         [Alias('Variables')]
         [hashtable]$InputData,
         [Parameter()][Hashtable]$Connection,
@@ -57,10 +51,14 @@ function New-ServiceNowCatalogItem {
     )
 
     begin {
-        if ($CatalogItemName) {
-            #Lookup the sys_id of the Catalog Item name
-            $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -Filter @('name', '-eq', $CatalogItemName )).sys_id
-            if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by name '$($catalogitemname)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItemName)'" }
+        if ($CatalogItem -match '^[a-zA-Z0-9]{32}$') {
+            #Verify the sys_id of the Catalog Item
+            $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -ID $CatalogItem).sys_id
+            if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by ID '$($CatalogItem)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItem)'" }
+        } else {
+            #Lookup the sys_id of the Catalog Item
+            $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -Filter @('name', '-eq', $CatalogItem )).sys_id
+            if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by name '$($CatalogItem)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItem)'" }
         }
     }
     process {
