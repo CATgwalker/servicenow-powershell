@@ -11,6 +11,9 @@
 .PARAMETER Variables
     Key/value pairs of variable names and their values
 
+.PARAMETER CheckoutImmediately
+    If provided, a second Post for cart checkout to submit_order API Endpoint will be sent
+
 .PARAMETER PassThru
     If provided, the new record will be returned
 
@@ -47,20 +50,21 @@ function New-ServiceNowCatalogItem {
         [hashtable]$InputData,
         [Parameter()][Hashtable]$Connection,
         [Parameter()][hashtable]$ServiceNowSession = $script:ServiceNowSession,
+        [Parameter()][switch]$CheckoutImmediately,
         [Parameter()][switch]$PassThru
     )
 
     begin {
+        if (-not $PSBoundParameters.ContainsKey('CheckoutImmediately')) {
+            $CheckoutImmediately = $false
+        }
         if ($CatalogItem -match '^[a-zA-Z0-9]{32}$') {
             #Verify the sys_id of the Catalog Item
-            $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -ID $CatalogItem).sys_id
-<<<<<<< HEAD
+            $CatalogItemID = Get-ServiceNowRecord -Table sc_cat_item -AsValue -ID $CatalogItem -Property sys_id
             if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by ID '$($CatalogItem)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItem)'" }
-=======
->>>>>>> 426dd6771816051effc02db641c4428a78259537
         } else {
             #Lookup the sys_id of the Catalog Item
-            $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -Filter @('name', '-eq', $CatalogItem )).sys_id
+            $CatalogItemID = Get-ServiceNowRecord -Table sc_cat_item -AsValue -Filter @('name', '-eq', $CatalogItem ) -Property sys_id
             if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by name '$($CatalogItem)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItem)'" }
         }
     }
@@ -79,7 +83,7 @@ function New-ServiceNowCatalogItem {
 
             $AddItemCartResponse = Invoke-ServiceNowRestMethod @AddItemToCart
 
-            if ($AddItemCartResponse.cart_id) {
+            if ($AddItemCartResponse.cart_id -and $CheckoutImmediately) {
                 $SubmitOrder = @{
                     Method            = 'Post'
                     UriLeaf           = "/servicecatalog/cart/submit_order"
@@ -89,10 +93,13 @@ function New-ServiceNowCatalogItem {
                 }
 
                 $SubmitOrderResponse = Invoke-ServiceNowRestMethod @SubmitOrder
+
+                if ($PassThru) {
+                    $SubmitOrderResponse | Select-Object @{'n' = 'number'; 'e' = { $_.request_number } }, request_id
+                }
             }
-            if ( $PassThru ) {
-                $SubmitOrderResponse
-            }
+        } else {
+            $AddItemToCart | Out-String
         }
     }
 }
