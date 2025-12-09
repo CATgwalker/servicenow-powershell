@@ -54,7 +54,10 @@ function New-ServiceNowCatalogItem {
         if ($CatalogItem -match '^[a-zA-Z0-9]{32}$') {
             #Verify the sys_id of the Catalog Item
             $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -ID $CatalogItem).sys_id
+<<<<<<< HEAD
             if ([string]::IsNullOrEmpty($CatalogItemID)) { throw "Unable to find catalog item by ID '$($CatalogItem)'" } else { Write-Verbose "Found $($catalogitemid) via lookup from '$($CatalogItem)'" }
+=======
+>>>>>>> 426dd6771816051effc02db641c4428a78259537
         } else {
             #Lookup the sys_id of the Catalog Item
             $CatalogItemID = (Get-ServiceNowRecord -Table sc_cat_item -AsValue -Filter @('name', '-eq', $CatalogItem )).sys_id
